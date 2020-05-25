@@ -1,0 +1,17 @@
+{
+  "name": "catan",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cd ./client && npm run dev & cd ./server && npm run dev",
+    "start": "",
+    "build": "cd ./server && npm run build && cd ../client && npm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^14.0.1"
+  }
+}

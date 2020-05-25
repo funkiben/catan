@@ -1,0 +1,20 @@
+{
+  "name": "catan",
+  "version": "1.0.0",
+  "description": "",
+  "main": "build/catan.js",
+  "types": "build/catan.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^3.9.2"
+  },
+  "dependencies": {
+    "@types/immutable": "^3.8.7",
+    "immutable": "^4.0.0-rc.12"
+  }
+}
