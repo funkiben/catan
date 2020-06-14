@@ -1,42 +1,28 @@
-import {PlayerColor} from "../board";
-import {TurnInfo} from "../player/player";
+import {PlayerColor} from "../state/board";
 import {
-  BuildCityAction,
-  BuildRoadAction,
-  BuildSettlementAction,
-  BuyDevelopmentCardAction,
-  ExchangeCardsAction,
   InitialTurnAction,
   MoveRobberAction,
-  PlayMonopolyCard,
-  PlayRoadBuildingCard,
-  PlayYearOfPlentyCard,
-  TradeWithPlayerAction
-} from "../player/action";
+  DiscardHalfOfResourceCardsAction,
+  TurnAction,
+  DomesticTradeAction
+} from "../common/action";
+import {TurnInfo} from "../common/turnInfo";
 
 /**
- * Interface for checking player action validity.
+ * Interface for checking player action validity, calculating player scores, and determining when a player has won.
  */
 export interface Rules {
-  isInitialTurnActionValid(player: PlayerColor, info: TurnInfo, action: InitialTurnAction): boolean;
+  isInitialTurnActionValid(color: PlayerColor, info: TurnInfo, action: InitialTurnAction): boolean;
 
-  isBuildSettlementActionValid(player: PlayerColor, info: TurnInfo, action: BuildSettlementAction): boolean;
+  isTurnActionValid(color: PlayerColor, info: TurnInfo, action: TurnAction): boolean;
 
-  isBuildCityActionValid(player: PlayerColor, info: TurnInfo, action: BuildCityAction): boolean;
+  isMoveRobberActionValid(color: PlayerColor, info: TurnInfo, action: MoveRobberAction): boolean;
 
-  isBuildRoadActionValid(player: PlayerColor, info: TurnInfo, action: BuildRoadAction): boolean;
+  isDiscardHalfOfResourceCardsActionValid(color: PlayerColor, info: TurnInfo, action: DiscardHalfOfResourceCardsAction): boolean;
 
-  isExchangeCardsActionValid(player: PlayerColor, info: TurnInfo, action: ExchangeCardsAction): boolean;
+  canAcceptTrade(color: PlayerColor, info: TurnInfo, action: DomesticTradeAction): boolean;
 
-  isTradeWithPlayerActionValid(player: PlayerColor, info: TurnInfo, action: TradeWithPlayerAction): boolean;
+  getVictoryPoints(color: PlayerColor, info: TurnInfo): number;
 
-  isBuyDevelopmentCardValid(player: PlayerColor, info: TurnInfo, action: BuyDevelopmentCardAction): boolean;
-
-  isMoveRobberActionValid(player: PlayerColor, info: TurnInfo, action: MoveRobberAction): boolean;
-
-  isPlayMonopolyValid(player: PlayerColor, info: TurnInfo, action: PlayMonopolyCard): boolean;
-
-  isPlayRoadBuildingCardValid(player: PlayerColor, info: TurnInfo, action: PlayRoadBuildingCard): boolean;
-
-  isPlayYearOfPlentyCardValid(player: PlayerColor, info: TurnInfo, action: PlayYearOfPlentyCard): boolean;
+  hasWon(color: PlayerColor, info: TurnInfo): boolean;
 }

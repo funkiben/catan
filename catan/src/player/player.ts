@@ -1,133 +1,104 @@
-import {Board, PlayerColor} from "../board";
-import {InitialTurnAction, Action, MoveRobberAction, TradeWithPlayerAction, PlayDevelopmentCardAction} from "./action";
+import {Board, PlayerColor} from "../state/board";
+import {
+  DiscardHalfOfResourceCardsAction,
+  DomesticTradeAction,
+  InitialTurnAction,
+  MoveRobberAction,
+  TurnAction
+} from "../common/action";
 import {PlayerObserver} from "./playerObserver";
-import {Map} from "immutable";
-
-/** // TODO figure out proper place for this type
- * The different types of resource cards.
- */
-export type ResourceCard = "WOOD" | "SHEEP" | "BRICK" | "STONE" | "WHEAT";
-
-/** // TODO figure out proper place for this type
- * The different types of development cards.
- */
-export type DevelopmentCard = "VICTORYPOINT" | "MONOPOLY" | "ROADBUILING" | "RESOURCES" | "KNIGHT";
+import {List, Map} from "immutable";
+import {DevelopmentCard, ResourceCards} from "../common/card";
+import {TurnInfo} from "../common/turnInfo";
+import {RollNumber} from "../admin/admin";
 
 /**
  * Interface for a Catan player.
  */
 export interface Player {
   /**
-   * Tels the player what color they are playing as.
-   * @param color The color.
+   * Tells the player of their color as well as the colors of all players in the game in order of their turns.
+   * @param player The color of the player.
+   * @param all The colors of all players in the game, in order of turn.
    */
-  notifyColor(color: PlayerColor): void;
+  notifyColors(player: PlayerColor, all: List<PlayerColor>): void;
 
   /**
-   * Gets the players first initial turn action.
-   * @param info Info about the current state of the game.
+   * Notifies the player of the results of the game.
+   * @param scores The final scores of all colors.
+   * @param winner The winner of the game. May be undefined if no winner
    */
-  getInitialTurn1(info: TurnInfo): InitialTurnAction;
+  notifyResults(scores: Map<PlayerColor, number>, winner?: PlayerColor): void;
 
   /**
-   * Gets the players second initial turn action.
-   * @param info Info about the current state of the game.
+   * Called when a player rolls the dice.
+   * @param color The player color that rolled the dice.
+   * @param roll The number rolled.
+   * @param cards The resource cards gained.
    */
-  getInitialTurn2(info: TurnInfo): InitialTurnAction;
+  notifyDiceRolled(color: PlayerColor, roll: RollNumber, cards: ResourceCards): void;
 
   /**
-   * Before the die is rolled, this function is called to determine if the player wants to play any development cards.
-   * @param info Info about the current state of the game.
+   * Called when the player receives resource cards from a player.
+   * @param from The player the cards came from.
+   * @param cards The cards the player has received.
    */
-  playDevelopmentCardBeforeRoll(info: TurnInfo): PlayDevelopmentCardAction | false;
+  notifyReceivedResourcesFromPlayer(from: PlayerColor, cards: ResourceCards): void;
 
   /**
-   * Gets an action from the player when it's their turn. This function will be called until it returns false, or if the
-   * player has no more actions left.
-   * @param info Info about the current state of the game.
+   * Called when another player takes cards from this player.
+   * @param taker The player taking the cards.
+   * @param cardsTaken The cards that are taken away.
    */
-  doAction(info: TurnInfo): Action | false;
+  notifyResourcesTakenByPlayer(taker: PlayerColor, cardsTaken: ResourceCards): void;
 
   /**
-   * Gets an observer for the given player, or undefined if no observer is desired for the given player.
-   * @param color The color of the player to give an observer for.
+   * Notifies the player they received a development card.
+   * @param card The development card the player received.
    */
-  getPlayerObserver(color: PlayerColor): PlayerObserver | undefined;
-
-  /**
-   * Called when the player receives resource cards from a roll.
-   * @param cards The cards the player has gained.
-   */
-  giveResourceCardsFromRoll(cards: ResourceCard[]): void;
-
-  /**
-   * Called when the player receives resource cards from stealing from another player.
-   * @param stolenFrom The player stolen from.
-   * @param card The card the player has stolen.
-   */
-  giveStolenResourceCard(stolenFrom: PlayerColor, card: ResourceCard): void;
-
-  /**
-   * Called when a player steals from this player.
-   * @param stealer The player stealing the card.
-   * @param takenCard The card that is stolen.
-   */
-  wasStolenFrom(stealer: PlayerColor, takenCard: ResourceCard): void;
-
-  /**
-   * Gives a development card to the given player.
-   * @param card The development card.
-   */
-  giveDevelopmentCard(card: DevelopmentCard): void;
+  notifyReceivedDevelopmentCard(card: DevelopmentCard): void;
 
   /**
    * Called when a trade is either accepted or declined by another player.
    */
-  tradeResult(tradeAction: TradeWithPlayerAction, accepted: boolean): void;
+  notifyTradeResult(tradeAction: DomesticTradeAction, accepted: boolean): void;
 
   /**
-   * Called when another player wants to trade with this player.
-   * @param from The trade the player is being requested from.
-   * @param give The cards this player must give.
-   * @param receive The cards this player will receive.
+   * Gets the players initial turn action.
+   * @param info Info about the current state of the game.
    */
-  acceptTrade(from: PlayerColor, give: ResourceCard[], receive: ResourceCard[]): boolean;
+  getInitialTurnAction(info: TurnInfo): InitialTurnAction;
+
+  /**
+   * Gets an action from the player when it's their turn.
+   * @param info Info about the current state of the game.
+   */
+  getTurnAction(info: TurnInfo): TurnAction;
+
+  /**
+   * Called when another player wants to trade with this player. Returns true if the trade is accepted by this player.
+   * @param info The turn info.
+   * @param from The player the trade is from.
+   * @param give The cards this player must give.
+   * @param get The cards this player will receive.
+   */
+  willAcceptTrade(info: TurnInfo, from: PlayerColor, give: ResourceCards, get: ResourceCards): boolean;
 
   /**
    * Called when this player rolls a 7 and must move the robber and steal from a player.
    * @param info Info about the state of the game.
    */
-  moveRobberForRollOf7(info: TurnInfo): MoveRobberAction;
+  moveRobber(info: TurnInfo): MoveRobberAction;
+
+  /**
+   * Chooses half of the players resource cards to discard because of a roll of 7.
+   */
+  discardHalfOfResourceCards(info: TurnInfo): DiscardHalfOfResourceCardsAction;
 
   /**
    * Adds an observer to this player.
    * @param observer The observer.
    */
   addObserver(observer: PlayerObserver): void;
-}
 
-/**
- * Info a player is given when it's their turn.
- */
-export type TurnInfo = {
-  /**
-   * The board.
-   */
-  readonly board: Board;
-  /**
-   * The players in turn order along with how many resource cards they have.
-   */
-  readonly playerCardCount: Map<PlayerColor, number>;
-  /**
-   * The resource cards the player has.
-   */
-  readonly resourceCards: ResourceCard[];
-  /**
-   * The development cards the player can use on their current turn.
-   */
-  readonly developmentCards: DevelopmentCard[];
-  /**
-   * How many resources of each type are left.
-   */
-  readonly resourceSupply: Map<ResourceCard, number>;
 }

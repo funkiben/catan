@@ -1,27 +1,14 @@
-import {PlayerColor} from "../board";
-import {DevelopmentCard, ResourceCard, TurnInfo} from "./player";
-import {InitialTurnAction, Action, MoveRobberAction, TradeWithPlayerAction} from "./action";
+import {DiscardHalfOfResourceCardsAction, InitialTurnAction, MoveRobberAction, TurnAction} from "../common/action";
+import {ObservableGameState} from "../state/observableGameState";
 
 export interface PlayerObserver {
-  onInitialTurn1(info: TurnInfo, action: InitialTurnAction): void;
+  onInitialTurn(game: ObservableGameState, action: InitialTurnAction): void;
 
-  onInitialTurn2(info: TurnInfo, action: InitialTurnAction): void;
+  onTurnAction(game: ObservableGameState, action: TurnAction): void;
 
-  onAction(info: TurnInfo, action: Action): void;
+  onMoveRobber(game: ObservableGameState, action: MoveRobberAction): void;
 
-  onEndTurn(info: TurnInfo): void;
+  onDiscardHalfOfCards(game: ObservableGameState, action: DiscardHalfOfResourceCardsAction): void;
 
-  onAcceptTrade(from: PlayerColor, give: ResourceCard[], receive: ResourceCard[]): void;
-
-  onTradeResult(action: TradeWithPlayerAction, accepted: boolean): void;
-
-  onRoll7(action: MoveRobberAction): void;
-
-  onReceiveResourceCardsFromRoll(cards: ResourceCard[]): void;
-
-  onGetStolenCard(stolenFrom: PlayerColor, card: ResourceCard): void;
-
-  onReceiveDevelopmentCard(card: DevelopmentCard[]): void;
-
-  onStolenFrom(stealer: PlayerColor, card: ResourceCard): void;
+  onRespondToTrade(game: ObservableGameState, give: number, receive: number, accepted: boolean): void;
 }
