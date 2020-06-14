@@ -1,6 +1,5 @@
-import {ALL_RESOURCE_CARD_TYPES, ResourceCard, ResourceCards, resourceCount} from "../common/card";
-import {RollNumber} from "../admin/admin";
 import {List} from "immutable";
+import {ALL_RESOURCE_CARD_TYPES, ResourceCard, ResourceCards, resourceCount, RollNumber} from "..";
 
 export interface Dice {
   readonly lastRoll?: RollNumber,

@@ -1,16 +1,17 @@
-import {Board, PlayerColor} from "../state/board";
 import {
+  DevelopmentCard,
   DiscardHalfOfResourceCardsAction,
   DomesticTradeAction,
   InitialTurnAction,
   MoveRobberAction,
-  TurnAction
-} from "../common/action";
-import {PlayerObserver} from "./playerObserver";
+  PlayerColor,
+  PlayerObserver,
+  ResourceCards,
+  RollNumber,
+  TurnAction,
+  TurnInfo
+} from "..";
 import {List, Map} from "immutable";
-import {DevelopmentCard, ResourceCards} from "../common/card";
-import {TurnInfo} from "../common/turnInfo";
-import {RollNumber} from "../admin/admin";
 
 /**
  * Interface for a Catan player.
@@ -101,4 +102,9 @@ export interface Player {
    */
   addObserver(observer: PlayerObserver): void;
 
+  /**
+   * Removes the observer from the player.
+   * @param observer The observer to remove.
+   */
+  removeObserver(observer: PlayerObserver): void;
 }

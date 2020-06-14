@@ -1,7 +1,5 @@
 import {List, Map} from "immutable";
-import {Edge, HexCoords, Intersection} from "../common/hex";
-import {RollNumber} from "../admin/admin";
-import {ResourceCard} from "../common/card";
+import {Edge, HexCoords, Intersection, ResourceCard, RollNumber} from "..";
 
 /**
  * The possible colors of players.
@@ -77,6 +75,10 @@ export interface BoardSetup {
  * Board and all hexagonal tiles are oriented "flat".
  */
 export interface Board extends BoardSetup {
+  readonly settlements: Map<PlayerColor, List<Intersection>>,
+  readonly cities: Map<PlayerColor, List<Intersection>>,
+  readonly roads: Map<PlayerColor, List<Edge>>,
+
   /**
    * Places the initial settlement and road for the beginning rounds of the game.
    * @param color The color of the settlement and road to place.
@@ -132,18 +134,6 @@ export interface Board extends BoardSetup {
    * @param harbor The harbor to see if a city or settlement is adjacent to.
    */
   isCityOrSettlementOfColorOnHarbor(color: PlayerColor, harbor: Harbor): boolean;
-
-  /**
-   * Gets the number of settlements with the given color on the board.
-   * @param color The color of settlements to count.
-   */
-  numSettlementsOfColor(color: PlayerColor): number;
-
-  /**
-   * Gets the number of cities with the given color on the board.
-   * @param color The color of cities to count.
-   */
-  numCitiesOfColor(color: PlayerColor): number;
 }
 
 /**
@@ -217,11 +207,11 @@ export function makeBoard(setup: BoardSetup): Board {
  * @param roads The roads on the board.
  * @param robber The robber position.
  */
-export function makeIntermediateBoard(setup: BoardSetup,
-                                      settlements: Map<PlayerColor, List<Intersection>>,
-                                      cities: Map<PlayerColor, List<Intersection>>,
-                                      roads: Map<PlayerColor, List<Edge>>,
-                                      robber: HexCoords): Board {
+function makeIntermediateBoard(setup: BoardSetup,
+                               settlements: Map<PlayerColor, List<Intersection>>,
+                               cities: Map<PlayerColor, List<Intersection>>,
+                               roads: Map<PlayerColor, List<Edge>>,
+                               robber: HexCoords): Board {
 
   function makeBoard(board: {
     settlements?: Map<PlayerColor, List<Intersection>>,
@@ -368,6 +358,11 @@ export function makeIntermediateBoard(setup: BoardSetup,
   }
 
   return {
+    ...setup,
+    robber,
+    roads,
+    settlements,
+    cities,
     placeInitialSettlementAndRoad: (color, settlementIntersection, roadEdge) => {
       verifyRoadConnectsToSettlement(roadEdge, settlementIntersection);
       verifyEdgeHasBuildableTile(roadEdge);
@@ -412,55 +407,6 @@ export function makeIntermediateBoard(setup: BoardSetup,
       return makeBoard({robber: coords});
     },
     numSettlementsOfColorOnTile: (color, coords) => settlements.get(color, List()).count(i => i.isHexAdjacent(coords)),
-    numCitiesOfColorOnTile: (color, coords) => cities.get(color, List()).count(i => i.isHexAdjacent(coords)),
-    numSettlementsOfColor: color => settlements.get(color, List()).size,
-    numCitiesOfColor: color => cities.get(color, List()).size,
-    ...setup,
-    robber
+    numCitiesOfColorOnTile: (color, coords) => cities.get(color, List()).count(i => i.isHexAdjacent(coords))
   };
 }
-
-
-// TODO...
-
-function getLongestPath(edges: List<Edge>): number {
-  let verticesStartedAt = List<Intersection>();
-  let max = 0;
-
-  for (const edge of edges) {
-    for (const v of edge.intersections().filter(v0 => !verticesStartedAt.some(v1 => v1.equals(v0)))) {
-      max = Math.max(max, dfsLongestPath(v, edges));
-      verticesStartedAt = verticesStartedAt.push(v);
-    }
-  }
-
-  return max;
-}
-
-function dfsLongestPath(start: Intersection, edges: List<Edge>): number {
-  let seen = List<Intersection>();
-
-  function dfs(current: Intersection): number {
-    seen = seen.push(current);
-
-    let max = 0;
-
-    const unseenNeighbors: List<Intersection> = current.edges()
-    .filter(edge => edges.find(edge.equals))
-    .map(e => e.intersections())
-    .reduce((l, v) => l.push(v), List())
-    .filter(v => v !== start)
-    .filter(v => !seen.find(v.equals));
-
-    for (const n of unseenNeighbors) {
-      max = Math.max(max, dfs(n) + 1);
-    }
-
-    return max;
-  }
-
-  return dfs(start);
-}
-
-
-

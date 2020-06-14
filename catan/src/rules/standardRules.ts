@@ -1,9 +1,19 @@
 import {List} from "immutable";
-import {Harbor, makeHarbor} from "../state/board";
-import {CITY_COST, DEVELOPMENT_CARD_COST, ROAD_COST, SETTLEMENT_COST} from "../admin/admin";
-import {Rules} from "./rules";
-import {visitTurnAction} from "../common/action";
-import {containsResource, containsResources, DevelopmentCard, ResourceCard, resourceCount} from "../common/card";
+import {
+  CITY_COST,
+  containsResource,
+  containsResources,
+  DEVELOPMENT_CARD_COST,
+  DevelopmentCard,
+  Harbor,
+  makeHarbor,
+  ResourceCard,
+  resourceCount,
+  ROAD_COST,
+  Rules,
+  SETTLEMENT_COST,
+  visitTurnAction
+} from "..";
 
 export const GLOBAL_HARBOR: Harbor = makeHarbor("ANY", 4);
 
@@ -71,7 +81,7 @@ export function standardRules(): Rules {
             rolledDice
             && (harbor.equal(GLOBAL_HARBOR) || board.isCityOrSettlementOfColorOnHarbor(color, harbor))
             && (give ? harbor.card === "ANY" : harbor.card !== "ANY")
-            && resourceCardSupply.get(receive, 0) > 0
+            && resourceCount(resourceCardSupply, receive) > 0
             && containsResource(resourceCards, give || <ResourceCard>harbor.card, harbor.amount),
         playKnightCard: action =>
             canPlayDevelopmentCard("KNIGHT")
@@ -103,17 +113,14 @@ export function standardRules(): Rules {
         },
         playYearOfPlentyCard: ({cards}) =>
             canPlayDevelopmentCard("YEAROFPLENTY")
-            && resourceCount(cards) <= YEAR_OF_PLENTY_RESOURCE_CARDS
-            && resourceCount(cards) > 0
+            && cards.size <= YEAR_OF_PLENTY_RESOURCE_CARDS
+            && cards.size > 0
             && containsResources(resourceCardSupply, cards),
         domesticTrade: ({iGiveYou, youGiveMe, to}) =>
             rolledDice
             && to != color
             && playerStates.has(to)
             && (iGiveYou.size > 0 || youGiveMe.size > 0)
-            // TODO maybe dont use maps for resources...
-            && List(iGiveYou.values()).every(n => n > 0)
-            && List(youGiveMe.values()).every(n => n > 0)
             && containsResources(resourceCards, iGiveYou)
       })
     },
@@ -131,9 +138,9 @@ export function standardRules(): Rules {
     },
     getVictoryPoints:
         (color, {game: {board, longestRoadCardOwner, largestArmyCardOwner}, player: {developmentCards}}) =>
-            board.numSettlementsOfColor(color) * VICTORY_POINTS_PER_SETTLEMENT
+            board.settlements.get(color, List()).size * VICTORY_POINTS_PER_SETTLEMENT
             + developmentCards.filter(d => d === "VICTORYPOINT").size * VICTORY_POINTS_PER_VICTORY_POINT_CARD
-            + board.numCitiesOfColor(color) * VICTORY_POINTS_PER_CITY
+            + board.cities.get(color, List()).size * VICTORY_POINTS_PER_CITY
             + (longestRoadCardOwner === color ? VICTORY_POINTS_LONGEST_ROAD_CARD : 0)
             + (largestArmyCardOwner === color ? VICTORY_POINTS_LARGEST_ARMY_CARD : 0),
     isInitialTurnActionValid:
@@ -150,7 +157,7 @@ export function standardRules(): Rules {
             containsResources(resourceCards, youGiveMe),
     isDiscardHalfOfResourceCardsActionValid:
         (color, {player: {resourceCards}}, {toDiscard}) =>
-            resourceCount(toDiscard) === Math.floor(resourceCount(resourceCards) / 2)
+            toDiscard.size === Math.floor(resourceCards.size / 2)
             && containsResources(resourceCards, toDiscard),
     hasWon: (color, info) =>
         rules.getVictoryPoints(color, info) === VICTORY_POINTS_FOR_WIN

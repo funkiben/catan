@@ -17,6 +17,7 @@
     "typescript": "^3.9.2"
   },
   "dependencies": {
+    "catan": "file:../catan",
     "express": "^4.17.1"
   }
 }

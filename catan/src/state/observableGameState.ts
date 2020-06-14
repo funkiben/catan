@@ -1,10 +1,16 @@
-import {Board, PlayerColor} from "./board";
-import {RollNumber} from "../admin/admin";
-import {DevelopmentCard, ResourceCards} from "../common/card";
-import {Edge, HexCoords, Intersection} from "../common/hex";
 import {Map} from "immutable";
-import {makeObservablePlayerState, ObservablePlayerState} from "./observablePlayerState";
 import {GameState} from "./gameState";
+import {
+  Board,
+  DevelopmentCard,
+  Edge,
+  HexCoords,
+  Intersection, makeObservablePlayerState,
+  ObservablePlayerState,
+  PlayerColor,
+  ResourceCards,
+  RollNumber
+} from "..";
 
 interface ObservableGameStateData {
   readonly board: Board;

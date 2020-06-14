@@ -1,4 +1,5 @@
 import express, {Express, Request, Response} from "express";
+import {Admin, makeAdmin} from "catan";
 
 const app: Express = express();
 

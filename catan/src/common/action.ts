@@ -1,6 +1,4 @@
-import {Harbor, PlayerColor} from "../state/board";
-import {Edge, HexCoords, Intersection} from "./hex";
-import {ResourceCard, ResourceCards} from "./card";
+import {Edge, Harbor, HexCoords, Intersection, PlayerColor, ResourceCard, ResourceCards} from "..";
 
 export interface InitialTurnAction {
   readonly settlement: Intersection;

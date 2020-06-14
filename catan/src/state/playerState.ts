@@ -1,12 +1,10 @@
 import {List} from "immutable";
 import {
-  addResources,
   containsResources,
   DevelopmentCard,
-  emptyResources,
   removeResources,
   ResourceCards
-} from "../common/card";
+} from "..";
 
 interface PlayerStateData {
   readonly resourceCards: ResourceCards,
@@ -57,7 +55,7 @@ export function makePlayerState(roadSupply: number, settlementSupply: number, ci
     roadSupply,
     settlementSupply,
     citySupply,
-    resourceCards: emptyResources(),
+    resourceCards: List(),
     developmentCards: List(),
     developmentCardsBoughtOnTurn: List(),
     numKnightCardsPlayed: 0,
@@ -116,7 +114,7 @@ function makeIntermediatePlayerState(state: PlayerStateData): PlayerState {
       developmentCardsBoughtOnTurn: developmentCardsBoughtOnTurn.push(card)
     }),
     giveResources: cards => update({
-      resourceCards: addResources(resourceCards, cards)
+      resourceCards: resourceCards.concat(cards)
     }),
     removePlayedDevelopmentCard: card => {
       verifyPlayerHasDevelopmentCard(card);

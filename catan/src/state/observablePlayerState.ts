@@ -1,5 +1,4 @@
-import {resourceCount} from "../common/card";
-import {PlayerState} from "./playerState";
+import {PlayerState, resourceCount} from "..";
 
 export interface ObservablePlayerState {
   readonly numResourceCards: number;
@@ -19,7 +18,7 @@ export function makeObservablePlayerState(state: PlayerState): ObservablePlayerS
     developmentCardsBoughtOnTurn, numKnightCardsPlayed, rolledDice
   } = state;
   return {
-    numResourceCards: resourceCount(resourceCards),
+    numResourceCards: resourceCards.size,
     numDevelopmentCards: developmentCards.size,
     numDevelopmentCardsBoughtOnTurn: developmentCardsBoughtOnTurn.size,
     numDevelopmentCardsPlayedOnTurn,

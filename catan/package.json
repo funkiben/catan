@@ -2,8 +2,8 @@
   "name": "catan",
   "version": "1.0.0",
   "description": "",
-  "main": "build/catan.js",
-  "types": "build/catan.d.ts",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
   "scripts": {
     "build": "tsc"
   },

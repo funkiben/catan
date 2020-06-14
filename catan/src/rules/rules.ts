@@ -1,12 +1,12 @@
-import {PlayerColor} from "../state/board";
 import {
+  DiscardHalfOfResourceCardsAction,
+  DomesticTradeAction,
   InitialTurnAction,
   MoveRobberAction,
-  DiscardHalfOfResourceCardsAction,
+  PlayerColor,
   TurnAction,
-  DomesticTradeAction
-} from "../common/action";
-import {TurnInfo} from "../common/turnInfo";
+  TurnInfo
+} from "..";
 
 /**
  * Interface for checking player action validity, calculating player scores, and determining when a player has won.

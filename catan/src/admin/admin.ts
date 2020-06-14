@@ -1,58 +1,72 @@
-import {Player} from "../player/player";
-import {BoardSetup, PlayerColor, ResourceTileType} from "../state/board";
-import {Rules} from "../rules/rules";
-import {List, Map} from "immutable";
-import {addResource, DevelopmentCard, emptyResources, makeResources, ResourceCard, ResourceCards} from "../common/card";
 import {
+  addResource,
+  AdminObserver,
+  ALL_RESOURCE_CARD_TYPES,
+  BoardSetup,
   BuildCityAction,
   BuildRoadAction,
   BuildSettlementAction,
+  DevelopmentCard,
+  Dice,
   DiscardHalfOfResourceCardsAction,
   DomesticTradeAction,
+  GameState,
+  HexCoords,
   InitialTurnAction,
+  makeGameState,
+  makeObservableGameState, makeResourceCards,
+  makeSafeDelegateObserver,
   MaritimeTradeAction,
   MoveRobberAction,
+  Player,
+  PlayerColor,
   PlayKnightCardAction,
   PlayMonopolyCardAction,
   PlayRoadBuildingCardAction,
   PlayYearOfPlentyCardAction,
+  removeAllResources,
+  ResourceCard,
+  ResourceCardPicker,
+  ResourceCards,
+  resourceCount,
+  ResourceTileType,
+  Rules,
   TurnAction,
+  TurnInfo,
   visitTurnAction
-} from "../common/action";
-import {GameState, makeGameState} from "../state/gameState";
-import {TurnInfo} from "../common/turnInfo";
-import {AdminObserver} from "./adminObserver";
-import {Dice, ResourceCardPicker} from "../state/random";
-import {HexCoords} from "../common/hex";
+} from "..";
+import {List, Map} from "immutable";
 import {makeFunctionsSafe} from "../util/safeFunction";
-import {makeObservableGameState} from "../state/observableGameState";
 
 /**
  * The numbers that can be placed on resource tiles i.e. the numbers that can be rolled with 2 6-sided dice.
  */
 export type RollNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
-export const SETTLEMENT_COST: ResourceCards = Map([
-  ["WHEAT", 1],
-  ["WOOD", 1],
-  ["BRICK", 1],
-  ["SHEEP", 1]
+export const SETTLEMENT_COST: ResourceCards = List([
+  "WHEAT",
+  "WOOD",
+  "BRICK",
+  "SHEEP"
 ]);
 
-export const CITY_COST: ResourceCards = Map([
-  ["WHEAT", 2],
-  ["STONE", 3]
+export const CITY_COST: ResourceCards = List([
+  "WHEAT",
+  "WHEAT",
+  "STONE",
+  "STONE",
+  "STONE"
 ]);
 
-export const ROAD_COST: ResourceCards = Map([
-  ["WOOD", 1],
-  ["BRICK", 1]
+export const ROAD_COST: ResourceCards = List([
+  "WOOD",
+  "BRICK"
 ]);
 
-export const DEVELOPMENT_CARD_COST: ResourceCards = Map([
-  ["SHEEP", 1],
-  ["STONE", 1],
-  ["WHEAT", 1]
+export const DEVELOPMENT_CARD_COST: ResourceCards = List([
+  "SHEEP",
+  "STONE",
+  "WHEAT",
 ]);
 
 export const RESOURCES_PER_SETTLEMENT = 1;
@@ -65,6 +79,10 @@ export const MIN_KNIGHTS_FOR_LARGEST_ARM_CARD = 3;
 export const MIN_PLAYERS = 3;
 
 export interface Admin {
+  addObserver(observer: AdminObserver): void;
+
+  removeObserver(observer: AdminObserver): void;
+
   run(): GameResults;
 }
 
@@ -81,14 +99,14 @@ export function makeAdmin(boardSetup: BoardSetup,
                           dice: Dice,
                           resourceCardPicker: ResourceCardPicker,
                           playerss: [Player, Player, Player] | [Player, Player, Player, Player],
-                          observers: List<AdminObserver>,
-                          resourceCardSupply: Map<ResourceCard, number>,
+                          resourceCardSupply: ResourceCards,
                           developmentCardSupply: List<DevelopmentCard>,
                           roadsPerPlayer: number,
                           settlementsPerPlayer: number,
                           citiesPerPlayer: number): Admin {
 
-  const observer: AdminObserver = makeSafeDelegateObserver(observers);
+  let observers: List<AdminObserver> = List();
+  let masterObserver: AdminObserver = makeSafeDelegateObserver(observers);
 
   const players = List(playerss).map(makeFunctionsSafe);
   const colorToPlayer: Map<PlayerColor, Player> = Map(PLAYER_COLOR_ORDER.zip(players));
@@ -180,7 +198,7 @@ export function makeAdmin(boardSetup: BoardSetup,
       rollDice: () => doRollDiceAction(state, color)
     });
 
-    observer.onDoTurnAction(color, action, makeObservableGameState(state));
+    masterObserver.onDoTurnAction(color, action, makeObservableGameState(state));
 
     return state;
   }
@@ -234,8 +252,8 @@ export function makeAdmin(boardSetup: BoardSetup,
 
   function doMaritimeTradeAction(state: GameState, color: PlayerColor, {give, harbor, receive}: MaritimeTradeAction): GameState {
     return state
-    .returnResourcesToSupply(color, makeResources(<ResourceCard>(give || harbor.card), harbor.amount))
-    .giveResourceCardsFromSupply(color, makeResources(receive, 1));
+    .returnResourcesToSupply(color, makeResourceCards(<ResourceCard>(give || harbor.card), harbor.amount))
+    .giveResourceCardsFromSupply(color, makeResourceCards(receive, 1));
   }
 
   function doPlayKnightCardAction(state: GameState, color: PlayerColor, action: PlayKnightCardAction) {
@@ -246,7 +264,7 @@ export function makeAdmin(boardSetup: BoardSetup,
     for (const other of state.playerStates.keys()) {
       if (other === color) continue;
 
-      const resourcesToTake = makeResources(resource, state.countResourceCardsOfType(other, resource));
+      const resourcesToTake = makeResourceCards(resource, state.countResourceCardsOfType(other, resource));
 
       notifyGotResourceCardsFromPlayer(color, other, resourcesToTake);
 
@@ -287,14 +305,27 @@ export function makeAdmin(boardSetup: BoardSetup,
 
     const rolledTiles = state.board.getResourceTilesWithRollNumber(rollNumber);
 
+    let allResourcesToGive: ResourceCards = List();
+    let resourcesToGive: Map<PlayerColor, ResourceCards> = Map();
+
     for (const color of state.playerStates.keys()) {
       const resources = rolledTiles
       .map(([coords, resourceTile]): [ResourceCard, number] => ([getResource(resourceTile), getResourceCountFromTile(color, coords)]))
-      .reduce((resources, [card, count]) => addResource(resources, card, count), emptyResources());
+      .reduce((resources, [card, count]) => addResource(resources, card, count), List());
 
-      // TODO handle supply running out
+      allResourcesToGive = allResourcesToGive.concat(resources);
+      resourcesToGive = resourcesToGive.set(color, resources);
+    }
 
-      getPlayer(color).notifyDiceRolled(roller, rollNumber, resources);
+
+    ALL_RESOURCE_CARD_TYPES
+    .filter(card => resourceCount(allResourcesToGive, card) > resourceCount(resourceCardSupply, card))
+    .forEach(card => {
+      resourcesToGive = resourcesToGive.map(cards => removeAllResources(cards, card));
+    });
+
+    for (const [color, resources] of resourcesToGive) {
+      getPlayer(color).notifyDiceRolled(color, rollNumber, resources);
       state = state.giveResourceCardsFromSupply(color, resources);
     }
 
@@ -302,7 +333,7 @@ export function makeAdmin(boardSetup: BoardSetup,
   }
 
   function handleRollOf7(state: GameState, roller: PlayerColor) {
-    state.playerStates.forEach((_, c) => getPlayer(c).notifyDiceRolled(roller, 7, emptyResources()));
+    state.playerStates.forEach((_, c) => getPlayer(c).notifyDiceRolled(roller, 7, List()));
 
     state = havePlayersDiscardCards(state);
 
@@ -325,7 +356,7 @@ export function makeAdmin(boardSetup: BoardSetup,
 
   function doDiscardHalfOfCardsAction(state: GameState, color: PlayerColor, action: DiscardHalfOfResourceCardsAction): GameState {
     state = state.returnResourcesToSupply(color, action.toDiscard);
-    observer.onDoDiscardHalfOfResourceCardsAction(color, action, makeObservableGameState(state));
+    masterObserver.onDoDiscardHalfOfResourceCardsAction(color, action, makeObservableGameState(state));
     return state;
   }
 
@@ -342,7 +373,7 @@ export function makeAdmin(boardSetup: BoardSetup,
       let card: ResourceCard;
       [state, card] = state.getRandomCardFromHand(color);
 
-      const resources = makeResources(card, 1);
+      const resources = makeResourceCards(card, 1);
 
       notifyGotResourceCardsFromPlayer(color, stealFrom, resources);
 
@@ -350,7 +381,7 @@ export function makeAdmin(boardSetup: BoardSetup,
     }
 
     if (callObserver) {
-      observer.onDoMoveRobberAction(color, {coords, stealFrom}, makeObservableGameState(state));
+      masterObserver.onDoMoveRobberAction(color, {coords, stealFrom}, makeObservableGameState(state));
     }
 
     return state;
@@ -389,15 +420,14 @@ export function makeAdmin(boardSetup: BoardSetup,
         winner: winner != undefined ? colorToPlayer.get(winner)! : undefined,
         cheaters: colors.filterNot(state.playerStates.has).map(c => colorToPlayer.get(c)!)
       }
+    },
+    addObserver: observer => {
+      observers.push(observer);
+      masterObserver = makeSafeDelegateObserver(observers);
+    },
+    removeObserver: observer => {
+      observers.remove(observers.indexOf(observer));
+      masterObserver = makeSafeDelegateObserver(observers);
     }
   }
-}
-
-function makeSafeDelegateObserver(observers: List<AdminObserver>): AdminObserver {
-  observers = observers.map(makeFunctionsSafe);
-  return {
-    onDoDiscardHalfOfResourceCardsAction: (color, info, after) => observers.forEach(o => o.onDoDiscardHalfOfResourceCardsAction(color, info, after)),
-    onDoTurnAction: (color, info, after) => observers.forEach(o => o.onDoTurnAction(color, info, after)),
-    onDoMoveRobberAction: (color, info, after) => observers.forEach(o => o.onDoMoveRobberAction(color, info, after))
-  };
 }

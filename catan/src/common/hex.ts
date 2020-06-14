@@ -1,3 +1,5 @@
+import {List} from "immutable";
+
 /**
  * The 6 edges of a hexagon oriented flat.
  */
@@ -182,3 +184,43 @@ function getEdgeBetween(a: HexCoords, b: HexCoords): Edge {
     }
   }
 }
+
+export function getLongestPath(edges: List<Edge>): number {
+  let verticesStartedAt = List<Intersection>();
+  let max = 0;
+
+  for (const edge of edges) {
+    for (const v of edge.intersections().filter(v0 => !verticesStartedAt.find(v0.equals))) {
+      max = Math.max(max, dfsLongestPath(v, edges));
+      verticesStartedAt = verticesStartedAt.push(v);
+    }
+  }
+
+  return max;
+}
+
+function dfsLongestPath(start: Intersection, edges: List<Edge>): number {
+  let seen = List<Intersection>();
+
+  function dfs(current: Intersection): number {
+    seen = seen.push(current);
+
+    let max = 0;
+
+    const unseenNeighbors: List<Intersection> = current.edges()
+    .filter(edge => edges.find(edge.equals))
+    .map(e => e.intersections())
+    .reduce((l, v) => l.push(v), List())
+    .filter(v => v !== current)
+    .filter(v => !seen.find(v.equals));
+
+    for (const n of unseenNeighbors) {
+      max = Math.max(max, dfs(n) + 1);
+    }
+
+    return max;
+  }
+
+  return dfs(start);
+}
+

@@ -1,18 +1,27 @@
-import {Board, BoardSetup, makeBoard, PlayerColor} from "./board";
 import {
-  addResources,
+  Board,
+  BoardSetup,
   containsResources,
   DevelopmentCard,
+  Dice,
+  Edge,
+  getLongestPath,
+  HexCoords,
+  Intersection,
+  makeBoard,
+  makePlayerState,
+  MIN_KNIGHTS_FOR_LARGEST_ARM_CARD,
+  MIN_ROADS_FOR_LONGEST_ROAD_CARD,
+  PlayerColor,
+  PlayerState,
   removeResources,
   ResourceCard,
+  ResourceCardPicker,
   ResourceCards,
-  resourceCount
-} from "../common/card";
-import {MIN_KNIGHTS_FOR_LARGEST_ARM_CARD, MIN_ROADS_FOR_LONGEST_ROAD_CARD, RollNumber} from "../admin/admin";
+  resourceCount,
+  RollNumber
+} from "..";
 import {List, Map} from "immutable";
-import {makePlayerState, PlayerState} from "./playerState";
-import {Dice, ResourceCardPicker} from "./random";
-import {Edge, HexCoords, Intersection} from "../common/hex";
 
 interface GameStateData {
   readonly playerStates: Map<PlayerColor, PlayerState>;
@@ -102,18 +111,18 @@ function makeIntermediateGameState(state: GameStateData): GameState {
   }
 
   function getLongestRoadCardOwner(): PlayerColor | undefined {
-    return getBonusCardOwner(longestRoadCardOwner, c => 0 /* TODO */, MIN_ROADS_FOR_LONGEST_ROAD_CARD);
+    return getBonusCardOwner(longestRoadCardOwner, (_, c) => getLongestPath(board.roads.get(c, List())), MIN_ROADS_FOR_LONGEST_ROAD_CARD);
   }
 
   function getLargestArmyCardOwner(): PlayerColor | undefined {
-    return getBonusCardOwner(largestArmyCardOwner, c => playerStates.get(c)!.numKnightCardsPlayed, MIN_KNIGHTS_FOR_LARGEST_ARM_CARD);
+    return getBonusCardOwner(largestArmyCardOwner, (s, _) => s.numKnightCardsPlayed, MIN_KNIGHTS_FOR_LARGEST_ARM_CARD);
   }
 
-  function getBonusCardOwner(currentOwner: PlayerColor | undefined, countFn: (color: PlayerColor) => number, min: number): PlayerColor | undefined {
+  function getBonusCardOwner(currentOwner: PlayerColor | undefined, countFn: (state: PlayerState, color: PlayerColor) => number, min: number): PlayerColor | undefined {
     let currentMost = 0;
     let colorWithCurrentMost: PlayerColor | undefined = undefined;
 
-    const counts = playerStates.map((_, c) => countFn(c)).filter(v => v >= min);
+    const counts = playerStates.map(countFn).filter(v => v >= min);
 
     if (!counts.isEmpty()) {
       currentMost = counts.max()!;
@@ -123,7 +132,7 @@ function makeIntermediateGameState(state: GameStateData): GameState {
     if (!currentOwner) {
       return colorWithCurrentMost;
     } else {
-      const currentOwnerCount = countFn(currentOwner)!;
+      const currentOwnerCount = counts.get(currentOwner, 0);
       return currentOwnerCount >= currentMost ? currentOwner : colorWithCurrentMost;
     }
   }
@@ -148,6 +157,7 @@ function makeIntermediateGameState(state: GameStateData): GameState {
 
   return {
     ...state,
+    // TODO dont call this every time...
     largestArmyCardOwner: getLargestArmyCardOwner(),
     longestRoadCardOwner: getLongestRoadCardOwner(),
     removePlayedDevelopmentCard: (color, card) =>
@@ -175,7 +185,7 @@ function makeIntermediateGameState(state: GameStateData): GameState {
     returnResourcesToSupply: (color, resources) =>
         update({
           playerStates: updatePlayerState(color, p => p.removeResources(resources)),
-          resourceCardSupply: addResources(resourceCardSupply, resources)
+          resourceCardSupply: resourceCardSupply.concat(resources)
         }),
     getRandomCardFromHand: color => {
       const [newPicker, card] = resourceCardPicker.pick(playerStates.get(color)!.resourceCards);

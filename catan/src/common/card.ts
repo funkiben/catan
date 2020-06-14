@@ -1,4 +1,4 @@
-import {Map, List} from "immutable";
+import {List} from "immutable";
 
 /**
  * The different types of resource cards.
@@ -6,46 +6,41 @@ import {Map, List} from "immutable";
 export type ResourceCard = "WOOD" | "SHEEP" | "BRICK" | "STONE" | "WHEAT";
 
 /**
- * A collection of resource cards.
- */
-export type ResourceCards = Map<ResourceCard, number>;
-
-/**
  * The different types of development cards.
  */
 export type DevelopmentCard = "VICTORYPOINT" | "MONOPOLY" | "ROADBUILDING" | "YEAROFPLENTY" | "KNIGHT";
 
-// TODO combine this with type
 export const ALL_RESOURCE_CARD_TYPES: List<ResourceCard> = List(["WOOD", "SHEEP", "BRICK", "STONE", "WHEAT"]);
 
-export function containsResources(toCheck: ResourceCards, resources: ResourceCards): boolean {
-  return resources.every((count, card) => containsResource(toCheck, card, count));
+export type ResourceCards = List<ResourceCard>;
+
+export function containsResources(resources: ResourceCards, contained: ResourceCards): boolean {
+  return ALL_RESOURCE_CARD_TYPES.every(card => resourceCount(resources, card) >= resourceCount(contained, card));
 }
 
 export function containsResource(cards: ResourceCards, card: ResourceCard, count: number): boolean {
-  return cards.get(card, 0) >= count;
+  return resourceCount(cards, card) >= count;
 }
 
-export function resourceCount(cards: ResourceCards, card?: ResourceCard) {
-  return card ? cards.get(card, 0) : cards.reduce((n, c) => n + c, 0);
+export function resourceCount(cards: ResourceCards, card: ResourceCard) {
+  return cards.filter(c => card === c).size;
 }
 
 export function addResource(cards: ResourceCards, card: ResourceCard, count: number = 1): ResourceCards {
-  return cards.update(card, 0, c => c + count);
-}
-
-export function addResources(cards: ResourceCards, cardsToAdd: ResourceCards): ResourceCards {
-  return cardsToAdd.reduce((result, count, card) => addResource(cards, card, count), cards);
+  for (let i = 0; i < count; i++) {
+    cards = cards.push(card);
+  }
+  return cards;
 }
 
 export function removeResources(resources: ResourceCards, toRemove: ResourceCards): ResourceCards {
-  return toRemove.reduce((cards, amount, card) => cards.update(card, cur => cur - amount), resources);
+  return toRemove.reduce((newResources, remove) => newResources.remove(newResources.indexOf(remove)), resources)
 }
 
-export function emptyResources(): ResourceCards {
-  return Map();
+export function removeAllResources(resources: ResourceCards, toRemove: ResourceCard): ResourceCards {
+  return resources.filter(r => r === toRemove);
 }
 
-export function makeResources(card: ResourceCard, amount: number): ResourceCards {
-  return Map([[card, amount]]);
+export function makeResourceCards(resource: ResourceCard, count: number) {
+  return addResource(List(), resource, count);
 }
