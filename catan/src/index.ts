@@ -1,4 +1,3 @@
-
 export * from "./admin/admin";
 export * from "./admin/adminObserver";
 
@@ -19,3 +18,5 @@ export * from "./state/observableGameState";
 export * from "./state/playerState";
 export * from "./state/observablePlayerState";
 export * from "./state/random";
+
+export * from "./util/observerManager";

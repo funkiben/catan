@@ -14,8 +14,8 @@ import {
   HexCoords,
   InitialTurnAction,
   makeGameState,
-  makeObservableGameState, makeResourceCards,
-  makeSafeDelegateObserver,
+  makeObservableGameState,
+  makeResourceCards,
   MaritimeTradeAction,
   MoveRobberAction,
   Player,
@@ -36,7 +36,8 @@ import {
   visitTurnAction
 } from "..";
 import {List, Map} from "immutable";
-import {makeFunctionsSafe} from "../util/safeFunction";
+import {makeSafePlayer} from "../player/safePlayer";
+import {makeObserverManager, ObserverManager} from "../util/observerManager";
 
 /**
  * The numbers that can be placed on resource tiles i.e. the numbers that can be rolled with 2 6-sided dice.
@@ -105,10 +106,9 @@ export function makeAdmin(boardSetup: BoardSetup,
                           settlementsPerPlayer: number,
                           citiesPerPlayer: number): Admin {
 
-  let observers: List<AdminObserver> = List();
-  let masterObserver: AdminObserver = makeSafeDelegateObserver(observers);
+  const observerManager: ObserverManager<AdminObserver> = makeObserverManager();
 
-  const players = List(playerss).map(makeFunctionsSafe);
+  const players = List(playerss).map(makeSafePlayer);
   const colorToPlayer: Map<PlayerColor, Player> = Map(PLAYER_COLOR_ORDER.zip(players));
   const colors = List(colorToPlayer.keys());
   const firstTurnColor = colors.get(0)!;
@@ -198,7 +198,7 @@ export function makeAdmin(boardSetup: BoardSetup,
       rollDice: () => doRollDiceAction(state, color)
     });
 
-    masterObserver.onDoTurnAction(color, action, makeObservableGameState(state));
+    observerManager.call(o => o.onDoTurnAction, color, action, makeObservableGameState(state));
 
     return state;
   }
@@ -356,7 +356,9 @@ export function makeAdmin(boardSetup: BoardSetup,
 
   function doDiscardHalfOfCardsAction(state: GameState, color: PlayerColor, action: DiscardHalfOfResourceCardsAction): GameState {
     state = state.returnResourcesToSupply(color, action.toDiscard);
-    masterObserver.onDoDiscardHalfOfResourceCardsAction(color, action, makeObservableGameState(state));
+
+    observerManager.call(o => o.onDoDiscardHalfOfResourceCardsAction, color, action, makeObservableGameState(state));
+
     return state;
   }
 
@@ -381,7 +383,7 @@ export function makeAdmin(boardSetup: BoardSetup,
     }
 
     if (callObserver) {
-      masterObserver.onDoMoveRobberAction(color, {coords, stealFrom}, makeObservableGameState(state));
+      observerManager.call(o => o.onDoMoveRobberAction, color, {coords, stealFrom}, makeObservableGameState(state));
     }
 
     return state;
@@ -422,12 +424,10 @@ export function makeAdmin(boardSetup: BoardSetup,
       }
     },
     addObserver: observer => {
-      observers.push(observer);
-      masterObserver = makeSafeDelegateObserver(observers);
+      observerManager.addObserver(observer);
     },
     removeObserver: observer => {
-      observers.remove(observers.indexOf(observer));
-      masterObserver = makeSafeDelegateObserver(observers);
+      observerManager.removeObserver(observer);
     }
   }
 }
