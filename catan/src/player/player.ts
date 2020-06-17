@@ -68,13 +68,13 @@ export interface Player {
    * Gets the players initial turn action.
    * @param info Info about the current state of the game.
    */
-  getInitialTurnAction(info: TurnInfo): InitialTurnAction;
+  getInitialTurnAction(info: TurnInfo): Promise<InitialTurnAction>;
 
   /**
    * Gets an action from the player when it's their turn.
    * @param info Info about the current state of the game.
    */
-  getTurnAction(info: TurnInfo): TurnAction;
+  getTurnAction(info: TurnInfo): Promise<TurnAction>;
 
   /**
    * Called when another player wants to trade with this player. Returns true if the trade is accepted by this player.
@@ -83,18 +83,18 @@ export interface Player {
    * @param give The cards this player must give.
    * @param get The cards this player will receive.
    */
-  willAcceptTrade(info: TurnInfo, from: PlayerColor, give: ResourceCards, get: ResourceCards): boolean;
+  willAcceptTrade(info: TurnInfo, from: PlayerColor, give: ResourceCards, get: ResourceCards): Promise<boolean>;
 
   /**
    * Called when this player rolls a 7 and must move the robber and steal from a player.
    * @param info Info about the state of the game.
    */
-  moveRobber(info: TurnInfo): MoveRobberAction;
+  moveRobber(info: TurnInfo): Promise<MoveRobberAction>;
 
   /**
    * Chooses half of the players resource cards to discard because of a roll of 7.
    */
-  discardHalfOfResourceCards(info: TurnInfo): DiscardHalfOfResourceCardsAction;
+  discardHalfOfResourceCards(info: TurnInfo): Promise<DiscardHalfOfResourceCardsAction>;
 
   /**
    * Adds an observer to this player.

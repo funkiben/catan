@@ -2,6 +2,7 @@ import {
   addResource,
   AdminObserver,
   ALL_RESOURCE_CARD_TYPES,
+  asyncVisitTurnAction,
   BoardSetup,
   BuildCityAction,
   BuildRoadAction,
@@ -32,8 +33,7 @@ import {
   ResourceTileType,
   Rules,
   TurnAction,
-  TurnInfo,
-  visitTurnAction
+  TurnInfo
 } from "..";
 import {List, Map} from "immutable";
 import {makeSafePlayer} from "../player/safePlayer";
@@ -84,7 +84,7 @@ export interface Admin {
 
   removeObserver(observer: AdminObserver): void;
 
-  run(): GameResults;
+  run(): Promise<GameResults>;
 }
 
 export type GameResults = {
@@ -145,22 +145,30 @@ export function makeAdmin(boardSetup: BoardSetup,
     return colorToPlayer.get(color)!;
   }
 
-  function tryAction<Action>(state: GameState,
-                             color: PlayerColor,
-                             getActionFn: (player: Player, info: TurnInfo) => Action,
-                             isActionValidFn: (color: PlayerColor, info: TurnInfo, action: Action) => boolean,
-                             doActionFn: (state: GameState, color: PlayerColor, action: Action) => GameState) {
+  async function tryActionAsync<Action>(state: GameState,
+                                        color: PlayerColor,
+                                        getActionFn: (player: Player, info: TurnInfo) => Promise<Action>,
+                                        isActionValidFn: (color: PlayerColor, info: TurnInfo, action: Action) => boolean,
+                                        doActionFn: (state: GameState, color: PlayerColor, action: Action) => Promise<GameState>): Promise<GameState> {
     const info = getTurnInfo(state, color);
-    const action = getActionFn(getPlayer(color), info);
+    const action = await getActionFn(getPlayer(color), info);
     if (!isActionValidFn(color, info, action)) {
       return state.removePlayer(color);
     }
-    return doActionFn(state, color, action);
+    return await doActionFn(state, color, action);
   }
 
-  function havePlayersDoInitialTurnRound(state: GameState): GameState {
+  async function tryAction<Action>(state: GameState,
+                                   color: PlayerColor,
+                                   getActionFn: (player: Player, info: TurnInfo) => Promise<Action>,
+                                   isActionValidFn: (color: PlayerColor, info: TurnInfo, action: Action) => boolean,
+                                   doActionFn: (state: GameState, color: PlayerColor, action: Action) => GameState): Promise<GameState> {
+    return await tryActionAsync(state, color, getActionFn, isActionValidFn, (state, color, action) => Promise.resolve(doActionFn(state, color, action)));
+  }
+
+  async function havePlayersDoInitialTurnRound(state: GameState): Promise<GameState> {
     for (const color of state.playerStates.keys()) {
-      state = tryAction(state, color,
+      state = await tryAction(state, color,
           (player, info) => player.getInitialTurnAction(info),
           rules.isInitialTurnActionValid,
           doInitialTurnAction);
@@ -172,18 +180,18 @@ export function makeAdmin(boardSetup: BoardSetup,
     return state.buildInitialRoadAndSettlement(color, settlement, road)
   }
 
-  function haveCurrentPlayerDoTurnAction(state: GameState): GameState {
+  async function haveCurrentPlayerDoTurnAction(state: GameState): Promise<GameState> {
     if (!state.currentTurnColor) {
       return state;
     }
-    return tryAction(state, state.currentTurnColor,
+    return await tryActionAsync(state, state.currentTurnColor,
         (player, info) => player.getTurnAction(info),
         rules.isTurnActionValid,
         doTurnAction);
   }
 
-  function doTurnAction(state: GameState, color: PlayerColor, action: TurnAction): GameState {
-    state = visitTurnAction(action, {
+  async function doTurnAction(state: GameState, color: PlayerColor, action: TurnAction): Promise<GameState> {
+    state = await asyncVisitTurnAction(action, {
       endTurn: () => doEndTurnAction(state),
       buildRoad: action => doBuildRoadAction(state, color, action),
       buildSettlement: action => doBuildSettlementAction(state, color, action),
@@ -231,7 +239,7 @@ export function makeAdmin(boardSetup: BoardSetup,
     return state.giveDevelopmentCard(color, card).returnResourcesToSupply(color, DEVELOPMENT_CARD_COST);
   }
 
-  function doDomesticTradeAction(state: GameState, from: PlayerColor, action: DomesticTradeAction): GameState {
+  async function doDomesticTradeAction(state: GameState, from: PlayerColor, action: DomesticTradeAction): Promise<GameState> {
     return tryAction(state, action.to,
         (player, info) => player.willAcceptTrade(info, from, action.youGiveMe, action.iGiveYou),
         (to, info, accepted) => !accepted || rules.canAcceptTrade(to, info, action),
@@ -256,11 +264,11 @@ export function makeAdmin(boardSetup: BoardSetup,
     .giveResourceCardsFromSupply(color, makeResourceCards(receive, 1));
   }
 
-  function doPlayKnightCardAction(state: GameState, color: PlayerColor, action: PlayKnightCardAction) {
+  function doPlayKnightCardAction(state: GameState, color: PlayerColor, action: PlayKnightCardAction): GameState {
     return doMoveRobberAction(state, color, action, false).removePlayedDevelopmentCard(color, "KNIGHT");
   }
 
-  function doPlayMonopolyCardAction(state: GameState, color: PlayerColor, {resource}: PlayMonopolyCardAction) {
+  function doPlayMonopolyCardAction(state: GameState, color: PlayerColor, {resource}: PlayMonopolyCardAction): GameState {
     for (const other of state.playerStates.keys()) {
       if (other === color) continue;
 
@@ -273,7 +281,7 @@ export function makeAdmin(boardSetup: BoardSetup,
     return state;
   }
 
-  function doPlayRoadBuildingCardAction(state: GameState, color: PlayerColor, {edge1, edge2}: PlayRoadBuildingCardAction) {
+  function doPlayRoadBuildingCardAction(state: GameState, color: PlayerColor, {edge1, edge2}: PlayRoadBuildingCardAction): GameState {
     state = state.buildRoad(color, edge1);
     if (edge2) {
       state = state.buildRoad(color, edge2);
@@ -281,11 +289,11 @@ export function makeAdmin(boardSetup: BoardSetup,
     return state;
   }
 
-  function doPlayYearOfPlentyCard(state: GameState, color: PlayerColor, {cards}: PlayYearOfPlentyCardAction) {
+  function doPlayYearOfPlentyCard(state: GameState, color: PlayerColor, {cards}: PlayYearOfPlentyCardAction): GameState {
     return state.giveResourceCardsFromSupply(color, cards);
   }
 
-  function doRollDiceAction(state: GameState, roller: PlayerColor) {
+  async function doRollDiceAction(state: GameState, roller: PlayerColor): Promise<GameState> {
     function getResource(tile: ResourceTileType): ResourceCard {
       // TODO handle gold
       return tile === "GOLD" ? "WOOD" : tile;
@@ -300,7 +308,7 @@ export function makeAdmin(boardSetup: BoardSetup,
     [state, rollNumber] = state.roll();
 
     if (rollNumber === 7) {
-      return handleRollOf7(state, roller);
+      return await handleRollOf7(state, roller);
     }
 
     const rolledTiles = state.board.getResourceTilesWithRollNumber(rollNumber);
@@ -332,10 +340,10 @@ export function makeAdmin(boardSetup: BoardSetup,
     return state;
   }
 
-  function handleRollOf7(state: GameState, roller: PlayerColor) {
+  async function handleRollOf7(state: GameState, roller: PlayerColor): Promise<GameState> {
     state.playerStates.forEach((_, c) => getPlayer(c).notifyDiceRolled(roller, 7, List()));
 
-    state = havePlayersDiscardCards(state);
+    state = await havePlayersDiscardCards(state);
 
     if (!state.playerStates.has(roller)) {
       return state;
@@ -344,14 +352,19 @@ export function makeAdmin(boardSetup: BoardSetup,
     return havePlayerMoveRobber(state, roller);
   }
 
-  function havePlayersDiscardCards(state: GameState): GameState {
+  async function havePlayersDiscardCards(state: GameState): Promise<GameState> {
+    let finalState = state;
+    const promises = [];
     for (const color of state.playerStates.keys()) {
-      state = tryAction(state, color,
-          (player, info) => player.discardHalfOfResourceCards(info),
-          rules.isDiscardHalfOfResourceCardsActionValid,
-          doDiscardHalfOfCardsAction);
+      const info = getTurnInfo(state, color);
+      promises.push(getPlayer(color).discardHalfOfResourceCards(info).then(async action => {
+        finalState = await tryAction(finalState, color, () => Promise.resolve(action), rules.isDiscardHalfOfResourceCardsActionValid, doDiscardHalfOfCardsAction);
+      }));
     }
-    return state;
+
+    await Promise.all(promises);
+
+    return finalState;
   }
 
   function doDiscardHalfOfCardsAction(state: GameState, color: PlayerColor, action: DiscardHalfOfResourceCardsAction): GameState {
@@ -362,7 +375,7 @@ export function makeAdmin(boardSetup: BoardSetup,
     return state;
   }
 
-  function havePlayerMoveRobber(state: GameState, color: PlayerColor): GameState {
+  function havePlayerMoveRobber(state: GameState, color: PlayerColor): Promise<GameState> {
     return tryAction(state, color,
         (player, info) => player.moveRobber(info),
         rules.isMoveRobberActionValid,
@@ -390,7 +403,7 @@ export function makeAdmin(boardSetup: BoardSetup,
   }
 
   return {
-    run: () => {
+    run: async () => {
       let state: GameState = makeGameState(
           boardSetup,
           colors,
@@ -405,11 +418,11 @@ export function makeAdmin(boardSetup: BoardSetup,
 
       notifyPlayersOfColors();
 
-      state = havePlayersDoInitialTurnRound(state);
-      state = havePlayersDoInitialTurnRound(state);
+      state = await havePlayersDoInitialTurnRound(state);
+      state = await havePlayersDoInitialTurnRound(state);
 
       while (!isGameOver(state)) {
-        state = haveCurrentPlayerDoTurnAction(state);
+        state = await haveCurrentPlayerDoTurnAction(state);
       }
 
       const winner = getWinner(state);
@@ -423,11 +436,7 @@ export function makeAdmin(boardSetup: BoardSetup,
         cheaters: colors.filterNot(state.playerStates.has).map(c => colorToPlayer.get(c)!)
       }
     },
-    addObserver: observer => {
-      observerManager.addObserver(observer);
-    },
-    removeObserver: observer => {
-      observerManager.removeObserver(observer);
-    }
+    addObserver: observerManager.addObserver,
+    removeObserver: observerManager.removeObserver
   }
 }

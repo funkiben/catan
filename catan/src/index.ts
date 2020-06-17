@@ -11,6 +11,8 @@ export * from "./rules/standardRules";
 
 export * from "./player/player";
 export * from "./player/playerObserver";
+export * from "./player/safePlayer";
+export * from "./player/remotePlayer";
 
 export * from "./state/board";
 export * from "./state/gameState";
@@ -20,3 +22,4 @@ export * from "./state/observablePlayerState";
 export * from "./state/random";
 
 export * from "./util/observerManager";
+export * from "./util/remote";

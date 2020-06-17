@@ -2,7 +2,7 @@ import {
   DiscardHalfOfResourceCardsAction,
   InitialTurnAction,
   MoveRobberAction,
-  ObservableGameState,
+  ObservableGameState, PlayerColor, ResourceCards,
   TurnAction
 } from "..";
 
@@ -15,5 +15,5 @@ export interface PlayerObserver {
 
   onDiscardHalfOfCards(game: ObservableGameState, action: DiscardHalfOfResourceCardsAction): void;
 
-  onRespondToTrade(game: ObservableGameState, give: number, receive: number, accepted: boolean): void;
+  onRespondToTrade(game: ObservableGameState, from: PlayerColor, give: ResourceCards, receive: ResourceCards, accepted: boolean): void;
 }

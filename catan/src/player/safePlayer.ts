@@ -14,11 +14,11 @@ const ACCEPT_TRADE_RESPONSE = false;
 export function makeSafePlayer(player: Player): Player {
   return {
     addObserver: makeSafeFunction(player.addObserver),
-    discardHalfOfResourceCards: makeSafeFunction(player.discardHalfOfResourceCards, DISCARD_HALF_OF_RESOURCE_CARDS_ACTION),
-    getInitialTurnAction: makeSafeFunction(player.getInitialTurnAction, INITIAL_TURN_ACTION),
-    getTurnAction: makeSafeFunction(player.getTurnAction, END_TURN_ACTION),
-    moveRobber: makeSafeFunction(player.moveRobber, MOVE_ROBBER_ACTION),
-    willAcceptTrade: makeSafeFunction(player.willAcceptTrade, ACCEPT_TRADE_RESPONSE),
+    discardHalfOfResourceCards: makeSafeFunction(player.discardHalfOfResourceCards, Promise.resolve(DISCARD_HALF_OF_RESOURCE_CARDS_ACTION)),
+    getInitialTurnAction: makeSafeFunction(player.getInitialTurnAction, Promise.resolve(INITIAL_TURN_ACTION)),
+    getTurnAction: makeSafeFunction(player.getTurnAction, Promise.resolve(END_TURN_ACTION)),
+    moveRobber: makeSafeFunction(player.moveRobber, Promise.resolve(MOVE_ROBBER_ACTION)),
+    willAcceptTrade: makeSafeFunction(player.willAcceptTrade, Promise.resolve(ACCEPT_TRADE_RESPONSE)),
     notifyColors: makeSafeFunction(player.notifyColors),
     notifyDiceRolled: makeSafeFunction(player.notifyDiceRolled),
     notifyReceivedDevelopmentCard: makeSafeFunction(player.notifyReceivedDevelopmentCard),

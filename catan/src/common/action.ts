@@ -96,3 +96,15 @@ export type TurnActionVisitor<T> = {
 export function visitTurnAction<T>(action: TurnAction, visitor: TurnActionVisitor<T>): T {
   return visitor[action.name]!(<any>action);
 }
+
+export function asyncVisitTurnAction<T>(action: TurnAction, visitor: TurnActionVisitor<T | Promise<T>>): Promise<T> {
+  const result = visitor[action.name]!(<any>action);
+  if (isPromise(result)) {
+    return result;
+  }
+  return Promise.resolve(result);
+}
+
+function isPromise<T>(t: any): t is Promise<T> {
+  return typeof t === "object" && t["then"] && typeof t["then"] === "function";
+}
