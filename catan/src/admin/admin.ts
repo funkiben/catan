@@ -16,9 +16,12 @@ import {
   InitialTurnAction,
   makeGameState,
   makeObservableGameState,
+  makeObserverManager,
   makeResourceCards,
+  makeSafePlayer,
   MaritimeTradeAction,
   MoveRobberAction,
+  ObserverManager,
   Player,
   PlayerColor,
   PlayKnightCardAction,
@@ -36,8 +39,6 @@ import {
   TurnInfo
 } from "..";
 import {List, Map} from "immutable";
-import {makeSafePlayer} from "../player/safePlayer";
-import {makeObserverManager, ObserverManager} from "../util/observerManager";
 
 /**
  * The numbers that can be placed on resource tiles i.e. the numbers that can be rolled with 2 6-sided dice.
@@ -176,8 +177,12 @@ export function makeAdmin(boardSetup: BoardSetup,
     return state;
   }
 
-  function doInitialTurnAction(state: GameState, color: PlayerColor, {settlement, road}: InitialTurnAction) {
-    return state.buildInitialRoadAndSettlement(color, settlement, road)
+  function doInitialTurnAction(state: GameState, color: PlayerColor, action: InitialTurnAction) {
+    state = state.buildInitialRoadAndSettlement(color, action.settlement, action.road);
+
+    observerManager.call(o => o.onDoInitialTurnAction, color, action, makeObservableGameState(state));
+
+    return state;
   }
 
   async function haveCurrentPlayerDoTurnAction(state: GameState): Promise<GameState> {
