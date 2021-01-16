@@ -12,12 +12,14 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/client-sessions": "^0.8.0",
     "@types/express": "^4.17.6",
     "tsc-loader": "^1.0.4",
     "typescript": "^3.9.2"
   },
   "dependencies": {
     "catan": "file:../catan",
+    "client-sessions": "^0.8.0",
     "express": "^4.17.1"
   }
 }
